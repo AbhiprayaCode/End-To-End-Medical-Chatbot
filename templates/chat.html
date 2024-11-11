@@ -15,14 +15,13 @@
 	
 	<body>
 		<div class="container-fluid h-100">
-			<div class="row justify-content-center h-100">		
+			<div class="row justify-content-center h-100">        
 				<div class="col-md-8 col-xl-6 chat">
 					<div class="card">
 						<div class="card-header msg_head">
 							<div class="d-flex bd-highlight">
 								<div class="img_cont">
 									<img src="https://cdn-icons-png.flaticon.com/512/387/387569.png" class="rounded-circle user_img">
-									<!-- <img src="https://www.prdistribution.com/spirit/uploads/pressreleases/2019/newsreleases/d83341deb75c4c4f6b113f27b1e42cd8-chatbot-florence-already-helps-thousands-of-patients-to-remember-their-medication.png" class="rounded-circle user_img"> -->
 									<span class="online_icon"></span>
 								</div>
 								<div class="user_info">
@@ -38,7 +37,7 @@
 						</div>
 						<div class="card-footer">
 							<form id="messageArea" class="input-group">
-                                <input type="text" id="text" name="msg" placeholder="Type your message..." autocomplete="off" class="form-control type_msg" required/>
+								<input type="text" id="text" name="msg" placeholder="Type your message..." autocomplete="off" class="form-control type_msg" required/>
 								<div class="input-group-append">
 									<button type="submit" id="send" class="input-group-text send_btn"><i class="fas fa-location-arrow"></i></button>
 								</div>
@@ -55,28 +54,67 @@
 					const date = new Date();
 					const hour = date.getHours();
 					const minute = date.getMinutes();
-					const str_time = hour+":"+minute;
+					const str_time = hour + ":" + (minute < 10 ? "0" : "") + minute;  // Formatting time
+		
 					var rawText = $("#text").val();
-
-					var userHtml = '<div class="d-flex justify-content-end mb-4"><div class="msg_cotainer_send">' + rawText + '<span class="msg_time_send">'+ str_time + '</span></div><div class="img_cont_msg"><img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg"></div></div>';
-					
+					var userHtml = '<div class="d-flex justify-content-end mb-4"><div class="msg_cotainer_send">' + rawText + '<span class="msg_time_send">' + str_time + '</span></div><div class="img_cont_msg"><img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg"></div></div>';
 					$("#text").val("");
 					$("#messageFormeight").append(userHtml);
-
+		
 					$.ajax({
-						data: {
-							msg: rawText,	
-						},
+						data: { msg: rawText },
 						type: "POST",
 						url: "/get",
 					}).done(function(data) {
-						var botHtml = '<div class="d-flex justify-content-start mb-4"><div class="img_cont_msg"><img src="https://cdn-icons-png.flaticon.com/512/387/387569.png" class="rounded-circle user_img_msg"></div><div class="msg_cotainer">' + data + '<span class="msg_time">' + str_time + '</span></div></div>';
+						// Format the response if it contains a list
+						var formattedResponse = formatList(data);
+		
+						var botHtml = '<div class="d-flex justify-content-start mb-4"><div class="img_cont_msg"><img src="https://cdn-icons-png.flaticon.com/512/387/387569.png" class="rounded-circle user_img_msg"></div><div class="msg_cotainer">' + formattedResponse + '<span class="msg_time">' + str_time + '</span></div></div>';
 						$("#messageFormeight").append($.parseHTML(botHtml));
+						$("#messageFormeight").scrollTop($("#messageFormeight")[0].scrollHeight);  // Ensure latest message is visible
 					});
+		
 					event.preventDefault();
 				});
 			});
+		
+			// Function to handle and format list
+			function formatList(responseText) {
+				const lines = responseText.split("\n");
+
+				let inList = false;  // Track if we are in a list
+				let formattedText = "";  // Store final formatted text
+
+				lines.forEach((line) => {
+					const trimmedLine = line.trim();
+					if (trimmedLine.match(/^\d+\.\s+/) || trimmedLine.match(/^[-•]\s+/)) {
+						// Start a list if not already in one
+						if (!inList) {
+							formattedText += "<ol>";
+							inList = true;
+						}
+						// Add list item
+						formattedText += "<li>" + trimmedLine.replace(/^\d+\.\s+|^[-•]\s+/, "") + "</li>";
+					} else {
+						// End list if we're in one and add normal text
+						if (inList) {
+							formattedText += "</ol>";
+							inList = false;
+						}
+						// Append non-list text as a paragraph
+						formattedText += "<p>" + trimmedLine + "</p>";
+					}
+				});
+
+				// Close any remaining open list
+				if (inList) {
+					formattedText += "</ul>";
+				}
+
+				return formattedText;
+			}
 		</script>
-        
-    </body>
+		
+		
+	</body>
 </html>

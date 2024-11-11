@@ -29,7 +29,7 @@ docsearch = PineconeVectorStore.from_existing_index(
     embedding=embeddings
 ) 
 
-retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 3})
+retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 1})
 
 llm = ChatGroq(
     model="mixtral-8x7b-32768",
