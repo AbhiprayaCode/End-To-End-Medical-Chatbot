@@ -7,6 +7,7 @@ from langchain.chains.conversation.memory import ConversationBufferMemory
 from langchain_core.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
 from src.prompt import *
+import requests
 import os
 
 app = Flask(__name__)
@@ -29,13 +30,12 @@ docsearch = PineconeVectorStore.from_existing_index(
     embedding=embeddings
 ) 
 
-retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 1})
+retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 
 llm = ChatGroq(
-    model="mixtral-8x7b-32768",
-    temperature=0.4,
-    max_retries=2,
-    max_tokens=512,
+    model="gemma-7b-it",
+    temperature=1,
+    max_tokens=1024,
     verbose=True,
 )
 
@@ -43,7 +43,7 @@ llm = ChatGroq(
 prompt = ChatPromptTemplate.from_messages(
     [
         ("system", system_prompt),
-        ("human", "{context}\nUser: {input}"),
+        ("human", "{history}\n{context}\nUser: {input}"),
     ]
 )
 
@@ -80,11 +80,36 @@ def chat():
     # Format related documents into a single string for better context
     context = "\n".join([doc.page_content for doc in related_docs])
 
-    # Invoke the conversation chain with the user message and context from related documents
+    # Invoke the conversation chain with the user message, history, and context from related documents
     response = conversation_chain({"input": msg, "context": context})
-    
+
     print("Response:", response["text"])
     return str(response["text"])
+
+# URL endpoint API Kemenkes atau data.go.id
+API_URL = 'https://data.go.id/api/v1/health_data_endpoint'  # Ganti dengan endpoint aktual
+API_KEY = 'YOUR_API_KEY'  # API key yang diperoleh dari registrasi (jika diperlukan)
+
+def fetch_health_data():
+    headers = {
+        'Authorization': f'Bearer {API_KEY}',  # Tambahkan jika API membutuhkan authorization
+        'Content-Type': 'application/json'
+    }
+    
+    response = requests.get(API_URL, headers=headers)
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        response.raise_for_status()
+
+@app.route('/api/health-data', methods=['GET'])
+def get_health_data():
+    try:
+        data = fetch_health_data()
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # if __name__ == "__main__":
 #     app.run(host="0.0.0.0", port=8080, debug=True)
