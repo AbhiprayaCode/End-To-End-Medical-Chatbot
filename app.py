@@ -6,11 +6,19 @@ from langchain_groq import ChatGroq
 from langchain.chains import LLMChain
 from langchain.chains.conversation.memory import ConversationBufferMemory
 from langchain_core.prompts import ChatPromptTemplate
+from pymongo import MongoClient
 from dotenv import load_dotenv
+import uuid
 from src.prompt import *
 import os
 
 load_dotenv()
+
+# MongoDB configuration
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
+client = MongoClient(MONGO_URI)
+db = client["medical_chatbot"]
+collection = db["chat_history"]
 
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
@@ -60,6 +68,19 @@ conversation_chain = LLMChain(
     verbose=True
 )
 
+def get_session_id():
+    # Check if a session ID already exists; otherwise, create a new one.
+    if "session_id" not in st.session_state:
+        st.session_state["session_id"] = str(uuid.uuid4())  # Generate a unique user/session ID
+    return st.session_state["session_id"]
+
+def save_to_mongo(user_input, bot_response, session_id):
+    # Insert the conversation into MongoDB, include the session ID
+    collection.insert_one({
+        "session_id": session_id,
+        "user_input": user_input,
+        "bot_response": bot_response
+    })
 # # Function to fetch health data from API
 # API_URL = 'https://data.go.id/api/v1/health_data_endpoint'  # Ganti dengan endpoint aktual
 # API_KEY = 'YOUR_API_KEY'  # API key yang diperoleh dari registrasi (jika diperlukan)
@@ -137,6 +158,12 @@ def main():
 
         # Save the conversation to session state
         st.session_state["chat_history"].append({"user_input": user_input, "bot_response": bot_response})
+
+        # Get the existing session ID or create a new one
+        session_id = get_session_id()
+
+        # Save the conversation to MongoDB
+        save_to_mongo(user_input, bot_response, session_id)
 
 if __name__ == "__main__":
     main()
