@@ -1,4 +1,4 @@
-from langchain.document_loaders import PyPDFLoader, DirectoryLoader
+from langchain.document_loaders import PyPDFLoader, DirectoryLoader, CSVLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceBgeEmbeddings
 import pandas as pd
@@ -15,14 +15,7 @@ def load_pdf_file(data):
 def load_csv_file(data):
     loader = DirectoryLoader(data,
                              glob="*.csv",
-                             loader_cls=lambda file_path: pd.read_csv(data))
-    documents = loader.load()
-    return documents
-
-def load_image_file(data):
-    loader = DirectoryLoader(data,
-                             glob="*.jpg",
-                             loader_cls=PyPDFLoader)
+                             loader_cls=CSVLoader)
     documents = loader.load()
     return documents
 
