@@ -1,11 +1,27 @@
 from langchain.document_loaders import PyPDFLoader, DirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceBgeEmbeddings
+import pandas as pd
 
 # Extract data from the PDF files
 def load_pdf_file(data):
     loader = DirectoryLoader(data,
                              glob = "*.pdf",
+                             loader_cls=PyPDFLoader)
+    documents = loader.load()
+    return documents
+
+# Extract data from the CSV files
+def load_csv_file(data):
+    loader = DirectoryLoader(data,
+                             glob="*.csv",
+                             loader_cls=lambda file_path: pd.read_csv(data))
+    documents = loader.load()
+    return documents
+
+def load_image_file(data):
+    loader = DirectoryLoader(data,
+                             glob="*.jpg",
                              loader_cls=PyPDFLoader)
     documents = loader.load()
     return documents

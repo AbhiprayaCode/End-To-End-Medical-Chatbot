@@ -1,4 +1,4 @@
-from src.helper import load_pdf_file, text_split, download_hugging_face_embeddings
+from src.helper import load_pdf_file, load_csv_file, text_split, download_hugging_face_embeddings
 from dotenv import load_dotenv
 from pinecone.grpc import PineconeGRPC as Pinecone
 from pinecone import ServerlessSpec
@@ -9,9 +9,10 @@ load_dotenv()
 
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
 os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
-
-extracted_data = load_pdf_file(data='./Data')
-text_chunks = text_split(extracted_data)
+data_directory = 'C:/UNIVERSITY/SEMESTER 4/Artificial Intelligence/Project/Chatbot/End-To-End-Medical-Chatbot/Data'
+extracted_data_pdf = load_pdf_file(data='./Data/pdf')
+extracted_data2 = load_csv_file(data='./Data/csv')
+text_chunks = text_split(extracted_data2)
 embeddings = download_hugging_face_embeddings()
 
 pc = Pinecone(api_key=PINECONE_API_KEY)
