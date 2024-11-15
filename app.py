@@ -1,4 +1,5 @@
-from flask import Flask, render_template, jsonify, request
+import streamlit as st
+import requests
 from src.helper import download_hugging_face_embeddings
 from langchain_pinecone import PineconeVectorStore
 from langchain_groq import ChatGroq
@@ -7,10 +8,7 @@ from langchain.chains.conversation.memory import ConversationBufferMemory
 from langchain_core.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
 from src.prompt import *
-import requests
 import os
-
-app = Flask(__name__)
 
 load_dotenv()
 
@@ -28,7 +26,7 @@ index_name = "medical-chatbot"
 docsearch = PineconeVectorStore.from_existing_index(
     index_name=index_name,
     embedding=embeddings
-) 
+)
 
 retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 
@@ -62,57 +60,81 @@ conversation_chain = LLMChain(
     verbose=True
 )
 
-# Print the memory history to see what context is being retained
-print("Conversation History:", memory.load_memory_variables({}))
+# # Function to fetch health data from API
+# API_URL = 'https://data.go.id/api/v1/health_data_endpoint'  # Ganti dengan endpoint aktual
+# API_KEY = 'YOUR_API_KEY'  # API key yang diperoleh dari registrasi (jika diperlukan)
 
-@app.route("/")
-def index():
-    return render_template("chat.html")
-
-@app.route("/get", methods=["GET", "POST"])
-def chat():
-    msg = request.form["msg"]
-    print("User Input:", msg)
-
-    # Get documents related to the user query using retriever
-    related_docs = retriever.get_relevant_documents(msg)
+# def fetch_health_data():
+#     headers = {
+#         'Authorization': f'Bearer {API_KEY}',  # Tambahkan jika API membutuhkan authorization
+#         'Content-Type': 'application/json'
+#     }
     
-    # Format related documents into a single string for better context
-    context = "\n".join([doc.page_content for doc in related_docs])
-
-    # Invoke the conversation chain with the user message, history, and context from related documents
-    response = conversation_chain({"input": msg, "context": context})
-
-    print("Response:", response["text"])
-    return str(response["text"])
-
-# URL endpoint API Kemenkes atau data.go.id
-API_URL = 'https://data.go.id/api/v1/health_data_endpoint'  # Ganti dengan endpoint aktual
-API_KEY = 'YOUR_API_KEY'  # API key yang diperoleh dari registrasi (jika diperlukan)
-
-def fetch_health_data():
-    headers = {
-        'Authorization': f'Bearer {API_KEY}',  # Tambahkan jika API membutuhkan authorization
-        'Content-Type': 'application/json'
-    }
+#     response = requests.get(API_URL, headers=headers)
     
-    response = requests.get(API_URL, headers=headers)
+#     if response.status_code == 200:
+#         return response.json()
+#     else:
+#         response.raise_for_status()
+
+
+
+# Streamlit App
+def main():
+    st.set_page_config(page_title="Doctor AI Chatbot", layout="wide")
+
+    # Sidebar with information
+    st.sidebar.title("Doctor AI")
+    st.sidebar.info("Ask anything about your health using this AI chatbot!")
     
-    if response.status_code == 200:
-        return response.json()
-    else:
-        response.raise_for_status()
+    st.title("Doctor AI - Your Health Assistant")
 
-@app.route('/api/health-data', methods=['GET'])
-def get_health_data():
-    try:
-        data = fetch_health_data()
-        return jsonify(data)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    # Initialize session state for chat history if it doesn't exist
+    if "chat_history" not in st.session_state:
+        st.session_state["chat_history"] = []
 
-# if __name__ == "__main__":
-#     app.run(host="0.0.0.0", port=8080, debug=True)
+    # Display the conversation history
+    st.subheader("Chat History")
+    chat_history_container = st.container()
+
+    # Display chat history from session state
+    with chat_history_container:
+        for chat in st.session_state["chat_history"]:
+            st.chat_message("user").write(f"{chat['user_input']}")
+            st.chat_message("assistant").write(f"{chat['bot_response']}")
+
+    # Form for user input
+    with st.form(key='user_input_form', clear_on_submit=True):
+        user_input = st.text_input("Type your message here:")
+        submit_button = st.form_submit_button("Send")
+    
+    if submit_button and user_input:
+        # Display user message
+        with chat_history_container:
+            st.chat_message("user").write(f"{user_input}")
+
+        # Update memory with user input to maintain history
+        memory.chat_memory.add_user_message(user_input)
+
+        # Get documents related to the user query using retriever
+        related_docs = retriever.get_relevant_documents(user_input)
+        
+        # Format related documents into a single string for better context
+        context = "\n".join([doc.page_content for doc in related_docs])
+
+        # Invoke the conversation chain with the user message, history, and context from related documents
+        response = conversation_chain({"input": user_input, "context": context})
+        bot_response = response["text"]
+
+        # Update memory with bot response to maintain history
+        memory.chat_memory.add_ai_message(bot_response)
+
+        # Display bot response
+        with chat_history_container:
+            st.chat_message("assistant").write(f"{bot_response}")
+
+        # Save the conversation to session state
+        st.session_state["chat_history"].append({"user_input": user_input, "bot_response": bot_response})
 
 if __name__ == "__main__":
-    app.run()
+    main()
