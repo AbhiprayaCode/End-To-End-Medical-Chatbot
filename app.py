@@ -85,7 +85,9 @@ def main():
 
     # Sidebar with information
     st.sidebar.title("Doctor AI")
-    st.sidebar.info("Ask anything about your health using this AI chatbot!")
+    st.sidebar.info("Doctor AI is a chatbot that provides information about diseases, health conditions, and medical information. Part of CareSense project created by President University Informatics Students. The project is focused on AI in Healthcare to provide advisement to patients who are unable to go to a doctor by giving a recomendations and consultation for commons diseases (except fatal diseases).")
+    st.sidebar.title("CareSense")
+    st.sidebar.info("CareSense is a startup company that is focused on providing AI in Healthcare. The company is founded by President University Informatics Students.")
     
     st.title("Doctor AI - Your Health Assistant")
 
