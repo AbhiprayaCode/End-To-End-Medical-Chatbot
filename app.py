@@ -12,8 +12,8 @@ import os
 
 load_dotenv()
 
-PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+PINECONE_API_KEY = os.environ.get("pcsk_6mPtho_64bJCbaVcQgmL6wPm2LpTczRBCi5dJ33HTdxpwr2xXRqQevSEJVkMfitwhdGKX8")
+GROQ_API_KEY = os.environ.get("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")
 
 os.environ["GROQ_API_KEY"] = GROQ_API_KEY
 os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
