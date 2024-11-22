@@ -1,5 +1,4 @@
 import streamlit as st
-import requests
 from src.helper import download_hugging_face_embeddings
 from langchain_pinecone import PineconeVectorStore
 from langchain_groq import ChatGroq
@@ -9,13 +8,15 @@ from langchain_core.prompts import ChatPromptTemplate
 from pymongo import MongoClient
 from dotenv import load_dotenv
 import uuid
-from src.prompt import *
 import os
+from src.prompt import *
+from pinecone import Pinecone
+from PyPDF2 import PdfReader
 
 load_dotenv()
 
 # MongoDB configuration
-MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
+MONGO_URI = os.environ.get("MONGO_URI")
 client = MongoClient(MONGO_URI)
 db = client["medical_chatbot"]
 collection = db["chat_history"]
@@ -30,7 +31,18 @@ embeddings = download_hugging_face_embeddings()
 
 index_name = "medical-chatbot"
 
-# Embed each chunk and upsert the embeddings into Pinecone index
+# Initialize Pinecone
+pinecone_instance = Pinecone(api_key=PINECONE_API_KEY)
+
+# Check and create index if it doesn't exist
+if index_name not in pinecone_instance.list_indexes().names():
+    pinecone_instance.create_index(
+        name=index_name,
+        dimension=384,  # Match your embedding dimension
+        metric='cosine'
+    )
+
+# Initialize the document searcher
 docsearch = PineconeVectorStore.from_existing_index(
     index_name=index_name,
     embedding=embeddings
@@ -49,15 +61,15 @@ llm = ChatGroq(
 prompt = ChatPromptTemplate.from_messages(
     [
         ("system", system_prompt),
-        ("human", "{history}\n{context}\nUser: {input}"),
+        ("human", "{history}\nUser: {input}"),
     ]
 )
 
 # Initialize memory to store conversation context
 memory = ConversationBufferMemory(
-    memory_key="history",  # Key used for accessing conversation history in chain
-    input_key="input",     # Specifies the main input variable
-    return_messages=True   # Ensures history is returned as a list of messages
+    memory_key="history",
+    input_key="input",
+    return_messages=True
 )
 
 # Create an LLM chain that includes memory
@@ -71,50 +83,55 @@ conversation_chain = LLMChain(
 def get_session_id():
     # Check if a session ID already exists; otherwise, create a new one.
     if "session_id" not in st.session_state:
-        st.session_state["session_id"] = str(uuid.uuid4())  # Generate a unique user/session ID
+        st.session_state["session_id"] = str(uuid.uuid4())  # Generate a unique session ID
     return st.session_state["session_id"]
 
 def save_to_mongo(user_input, bot_response, session_id):
-    # Insert the conversation into MongoDB, include the session ID
     collection.insert_one({
         "session_id": session_id,
         "user_input": user_input,
         "bot_response": bot_response
     })
-# # Function to fetch health data from API
-# API_URL = 'https://data.go.id/api/v1/health_data_endpoint'  # Ganti dengan endpoint aktual
-# API_KEY = 'YOUR_API_KEY'  # API key yang diperoleh dari registrasi (jika diperlukan)
 
-# def fetch_health_data():
-#     headers = {
-#         'Authorization': f'Bearer {API_KEY}',  # Tambahkan jika API membutuhkan authorization
-#         'Content-Type': 'application/json'
-#     }
-    
-#     response = requests.get(API_URL, headers=headers)
-    
-#     if response.status_code == 200:
-#         return response.json()
-#     else:
-#         response.raise_for_status()
-
-
+# Function to read and extract text from a PDF file
+def extract_text_from_pdf(pdf_file):
+    reader = PdfReader(pdf_file)
+    text = ""
+    for page in reader.pages:
+        text += page.extract_text() + "\n"
+    return text
 
 # Streamlit App
 def main():
     st.set_page_config(page_title="Doctor AI Chatbot", layout="wide")
 
-    # Sidebar with information
+    # Sidebar information
     st.sidebar.title("Doctor AI")
     st.sidebar.info("Doctor AI is a chatbot that provides information about diseases, health conditions, and medical information. Part of CareSense project created by President University Informatics Students. The project is focused on AI in Healthcare to provide advisement to patients who are unable to go to a doctor by giving a recomendations and consultation for commons diseases (except fatal diseases).")
     st.sidebar.title("CareSense")
-    st.sidebar.info("CareSense is a startup company that is focused on providing AI in Healthcare. The company is founded by President University Informatics Students.")
+    st.sidebar.info("CareSense is focused on AI in Healthcare, founded by President University Informatics Students.")
     
     st.title("Doctor AI - Your Health Assistant")
 
-    # Initialize session state for chat history if it doesn't exist
+    # PDF Upload Section
+    st.header("Upload PDF Document")
+    uploaded_file = st.file_uploader("Select a PDF file", type=["pdf"])
+
+    if uploaded_file is not None:
+        # Extract text from the uploaded PDF
+        pdf_content = extract_text_from_pdf(uploaded_file)
+        st.success(f"File '{uploaded_file.name}' uploaded successfully.")
+        st.write("### Extracted PDF Content")
+        st.text_area("Content from PDF", pdf_content, height=200)
+        
+        # Store extracted PDF content in session state for persistent access
+        st.session_state["pdf_content"] = pdf_content
+
+    # Initialize session state for chat history and PDF content if they don't exist
     if "chat_history" not in st.session_state:
         st.session_state["chat_history"] = []
+    if "pdf_content" not in st.session_state:
+        st.session_state["pdf_content"] = ""
 
     # Display the conversation history
     st.subheader("Chat History")
@@ -136,20 +153,17 @@ def main():
         with chat_history_container:
             st.chat_message("user").write(f"{user_input}")
 
-        # Update memory with user input to maintain history
+        # Update memory with user input
         memory.chat_memory.add_user_message(user_input)
 
-        # Get documents related to the user query using retriever
-        related_docs = retriever.get_relevant_documents(user_input)
-        
-        # Format related documents into a single string for better context
-        context = "\n".join([doc.page_content for doc in related_docs])
+        # Use the stored PDF content as part of the context
+        context = st.session_state["pdf_content"] if st.session_state["pdf_content"] else ""
 
-        # Invoke the conversation chain with the user message, history, and context from related documents
+        # Invoke conversation chain with user message, history, and persistent context
         response = conversation_chain({"input": user_input, "context": context})
         bot_response = response["text"]
 
-        # Update memory with bot response to maintain history
+        # Update memory with bot response
         memory.chat_memory.add_ai_message(bot_response)
 
         # Display bot response
@@ -159,10 +173,10 @@ def main():
         # Save the conversation to session state
         st.session_state["chat_history"].append({"user_input": user_input, "bot_response": bot_response})
 
-        # Get the existing session ID or create a new one
+        # Get or create session ID
         session_id = get_session_id()
 
-        # Save the conversation to MongoDB
+        # Save conversation to MongoDB
         save_to_mongo(user_input, bot_response, session_id)
 
 if __name__ == "__main__":
