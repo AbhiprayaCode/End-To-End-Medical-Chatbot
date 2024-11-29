@@ -2,7 +2,6 @@ from langchain.document_loaders import PyPDFLoader, DirectoryLoader, CSVLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceBgeEmbeddings
 import pdfplumber
-import os
 
 # Extract data from the PDF files
 def load_pdf_file(data):
@@ -53,13 +52,13 @@ def embed_pdf_content(pdf_file_path, embeddings, index_name, pinecone_instance):
 
         # Save embeddings to Pinecone
         docs_to_store = [{
-            "id": f"{os.path.basename(pdf_file_path)}_{i}", 
-            "values": emb, 
-            "metadata": {"source": pdf_file_path}
-        } for i, emb in enumerate(embeddings_result)]
+            'id': f"{pdf_file_path}-{i}",
+            'values': embeddings_result[i],
+            'metadata': {'text': text_chunks[i]}
+        } for i in range(len(text_chunks))]
 
-        index.upsert(docs_to_store)
+        index.upsert(vectors=docs_to_store)
+        return "Embedding uploaded successfully."
 
-        return {"status": "success", "embedded_chunks": len(text_chunks)}
     except Exception as e:
-        return {"status": "error", "error": str(e)}
+        return f"An error occurred: {str(e)}"
