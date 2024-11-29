@@ -50,7 +50,7 @@ docsearch = PineconeVectorStore.from_existing_index(
 
 retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 
-llm = Groq(
+llm = ChatGroq(
     model="gemma-7b-it",
     temperature=1,
     max_tokens=1024,
