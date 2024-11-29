@@ -1,3 +1,4 @@
+from groq import Groq
 import streamlit as st
 from src.helper import download_hugging_face_embeddings
 from langchain_pinecone import PineconeVectorStore
@@ -113,25 +114,24 @@ def main():
     
     st.title("Doctor AI - Your Health Assistant")
 
-    # PDF Upload Section
-    st.header("Upload PDF Document")
+    # PDF & Image Upload Section
+    st.header("Upload Document (PDF)")
     uploaded_file = st.file_uploader("Select a PDF file", type=["pdf"])
 
     if uploaded_file is not None:
-        # Extract text from the uploaded PDF
-        pdf_content = extract_text_from_pdf(uploaded_file)
-        st.success(f"File '{uploaded_file.name}' uploaded successfully.")
-        st.write("### Extracted PDF Content")
-        st.text_area("Content from PDF", pdf_content, height=200)
-        
-        # Store extracted PDF content in session state for persistent access
-        st.session_state["pdf_content"] = pdf_content
+        if uploaded_file.type == "application/pdf":
+            # Extract text from the uploaded PDF
+            pdf_content = extract_text_from_pdf(uploaded_file)
+            st.success(f"File '{uploaded_file.name}' uploaded successfully.")
+            st.write("### Extracted PDF Content")
+            st.text_area("Content from PDF", pdf_content, height=200)
+            st.session_state["document_content"] = pdf_content
 
-    # Initialize session state for chat history and PDF content if they don't exist
+    # Initialize session state for chat history and document content if they don't exist
     if "chat_history" not in st.session_state:
         st.session_state["chat_history"] = []
-    if "pdf_content" not in st.session_state:
-        st.session_state["pdf_content"] = ""
+    if "document_content" not in st.session_state:
+        st.session_state["document_content"] = ""
 
     # Display the conversation history
     st.subheader("Chat History")
@@ -156,8 +156,8 @@ def main():
         # Update memory with user input
         memory.chat_memory.add_user_message(user_input)
 
-        # Use the stored PDF content as part of the context
-        context = st.session_state["pdf_content"] if st.session_state["pdf_content"] else ""
+        # Use the stored document content as part of the context
+        context = st.session_state["document_content"] if st.session_state["document_content"] else ""
 
         # Invoke conversation chain with user message, history, and persistent context
         response = conversation_chain({"input": user_input, "context": context})
