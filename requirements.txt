@@ -1,5 +1,6 @@
 pymongo
 pdfplumber
+PyPDF2
 streamlit
 python-dotenv
 requests
