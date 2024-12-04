@@ -15,7 +15,6 @@ from pinecone import Pinecone
 from PyPDF2 import PdfReader
 import json
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 
 load_dotenv()
 
@@ -116,10 +115,8 @@ def main():
     # Your existing Streamlit UI logic...
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(port=5000)
     main()
-
-CORS(app)
 
 # Function to read and extract text from a PDF file
 def extract_text_from_pdf(pdf_file):
