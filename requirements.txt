@@ -1,4 +1,5 @@
 pymongo
+flask
 pdfplumber
 PyPDF2
 streamlit
