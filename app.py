@@ -13,8 +13,13 @@ import os
 from src.prompt import *
 from pinecone import Pinecone
 from PyPDF2 import PdfReader
+import json
+from flask import Flask, request, jsonify
 
 load_dotenv()
+
+app = Flask(__name__)
+
 
 # MongoDB configuration
 MONGO_URI = os.environ.get("MONGO_URI")
@@ -93,6 +98,25 @@ def save_to_mongo(user_input, bot_response, session_id):
         "user_input": user_input,
         "bot_response": bot_response
     })
+
+@app.route('/api/chat', methods=['POST'])
+def chat_api():
+    data = request.json
+    user_input = data.get('user_input')
+    session_id = str(uuid.uuid4())
+    # Example response (stub response, replace with your AI logic)
+    bot_response = f"Response to '{user_input}'"
+    save_to_mongo(user_input, bot_response, session_id)
+    return jsonify({'bot_response': bot_response})
+
+# Streamlit part can be left unchanged
+def main():
+    st.title("Doctor AI - Your Health Assistant")
+    # Your existing Streamlit UI logic...
+
+if __name__ == "__main__":
+    app.run(port=5000)
+    main()
 
 # Function to read and extract text from a PDF file
 def extract_text_from_pdf(pdf_file):
