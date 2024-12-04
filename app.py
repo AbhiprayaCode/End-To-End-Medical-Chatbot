@@ -106,6 +106,19 @@ def extract_text_from_pdf(pdf_file):
 def main():
     st.set_page_config(page_title="Doctor AI Chatbot", layout="wide")
 
+    # Handle API requests
+    if st.request.method == 'POST':
+        try:
+            # Read JSON request
+            user_input = st.request.json.get('user_input')
+            if not user_input:
+                st.error("Invalid request")
+            else:
+                response = {"bot_response": f"Response to '{user_input}'"}
+                st.json(response)
+        except Exception as e:
+            st.error(f"Error processing request: {e}")
+
     # Sidebar information
     st.sidebar.title("Doctor AI")
     st.sidebar.info("Doctor AI is a chatbot that provides information about diseases, health conditions, and medical information. Part of CareSense project created by President University Informatics Students. The project is focused on AI in Healthcare to provide advisement to patients who are unable to go to a doctor by giving a recomendations and consultation for commons diseases (except fatal diseases).")
