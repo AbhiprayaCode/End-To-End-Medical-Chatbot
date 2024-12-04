@@ -15,6 +15,7 @@ from pinecone import Pinecone
 from PyPDF2 import PdfReader
 import json
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 
 load_dotenv()
 
@@ -117,6 +118,8 @@ def main():
 if __name__ == "__main__":
     app.run(port=5000)
     main()
+
+CORS(app)
 
 # Function to read and extract text from a PDF file
 def extract_text_from_pdf(pdf_file):
