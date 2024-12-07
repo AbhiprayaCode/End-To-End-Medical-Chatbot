@@ -1,6 +1,7 @@
 pymongo
 pdfplumber
 flask
+PyPDF2
 flask_cors
 streamlit
 python-dotenv
